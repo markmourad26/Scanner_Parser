@@ -1,10 +1,15 @@
 class Scanner:
+    line_count = 1
     def __init__(self, tiny_code = ""):
         self.tiny_code = tiny_code
         self.tokens = []
+        self.token_pos = []
 
     def set_tiny_code(self, tiny_code):
         self.tiny_code = tiny_code
+
+    def get_token_pos(self):
+        return self.token_pos
 
 
     def scan(self):
@@ -16,7 +21,11 @@ class Scanner:
         token_type = ""
         state = "start"
         i = 0
+        line_inc = False
         while i < len(self.tiny_code):
+            if self.tiny_code[i] == '\n':
+                Scanner.line_count += 1
+                line_inc = True
             if state == "start":
                 if self.tiny_code[i] == ' ':
                     i+=1
@@ -80,21 +89,29 @@ class Scanner:
                 self.tokens.append((token_value, token_type))
                 if token_type != "special_character":
                     i-=1
+                    if line_inc:
+                        Scanner.line_count-=1
+                self.token_pos.append(Scanner.line_count)
                 token_value = ""
                 token_type = ""
                 state = "start"
             i+=1
+            line_inc = False
 
     def get_tokens(self):
+        self.token_pos = []
+        Scanner.line_count = 1
         self.scan()
+        Scanner.line_count = 1
         return self.tokens
 
     def export_tokens(self, filename):
+        self.token_pos = []
+        Scanner.line_count = 1
         self.scan()
         with open(filename, 'w+') as out:
             for token in self.tokens:
                 out.write(token[0] + ", " + token[1] + '\n')
-
 
 
 '''scan = Scanner("""{ Sample program in TINY language – computes factorial}

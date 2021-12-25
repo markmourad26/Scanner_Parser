@@ -23,8 +23,10 @@ class Node:
 
 class Parser:
     counter = 0
-    def __init__(self, tokens):
+    def __init__(self, tokens, pos):
         self.tokens = tokens
+        self.token_pos = pos
+        self.error = None
         self.count_tokens = len(self.tokens)
         self.curr_index = 0
         self.curr_token = self.tokens[self.curr_index]
@@ -32,6 +34,7 @@ class Parser:
         self.nodes = {}
         self.edges = []
         self.rank = []
+        self.children = []
 
     def get_nodes(self):
         return self.nodes
@@ -39,6 +42,10 @@ class Parser:
         return self.edges
     def get_rank(self):
         return self.rank
+    def get_children(self):
+        return self.children
+    def get_error(self):
+        return self.error
 
     def set_tokens(self, tokens):
         self.tokens = tokens
@@ -53,6 +60,10 @@ class Parser:
             self.curr_token = self.tokens[self.curr_index]
             return True
         else:
+            if self.token_pos[self.curr_index] == self.token_pos[self.curr_index-1]:
+                self.error = self.token_pos[self.curr_index],x+' is missing.'
+            else:
+                self.error = self.token_pos[self.curr_index-1],x+' is missing.'
             raise ValueError('Token Mismatch', self.tokens)
 
     def factor(self):
@@ -67,8 +78,11 @@ class Parser:
             tree = Node(('IDENTIFIER', '(' + str(self.curr_token[0]) + ')'), 'o')
             self.match(self.curr_token[0])
         else:
+            if self.token_pos[self.curr_index] == self.token_pos[self.curr_index-1]:
+                self.error = self.token_pos[self.curr_index],'factor'+' is missing.'
+            else:
+                self.error = self.token_pos[self.curr_index-1],'factor'+' is missing.'
             raise ValueError('SyntaxError', self.tokens)
-            return False
         return tree
 
     def mulop(self):
@@ -125,6 +139,10 @@ class Parser:
         if self.curr_token[1] == 'identifier':
             self.match(self.curr_token[0])
         else:
+            if self.token_pos[self.curr_index] == self.token_pos[self.curr_index-1]:
+                self.error = self.token_pos[self.curr_index],'identifier'+' is missing.'
+            else:
+                self.error = self.token_pos[self.curr_index-1],'identifier'+' is missing.'
             raise ValueError('Token Mismatch', self.tokens)
         return tree
 
@@ -168,6 +186,10 @@ class Parser:
         elif self.curr_token[0] == 'write':
             tree = self.write_stmt()
         else:
+            if self.token_pos[self.curr_index] == self.token_pos[self.curr_index-1]:
+                self.error = self.token_pos[self.curr_index],'Incomplete statment'
+            else:
+                self.error = self.token_pos[self.curr_index-1],'Incomplete statment'
             raise ValueError('SyntaxError', self.tokens)
         return tree
 
@@ -188,15 +210,20 @@ class Parser:
                     parent = s
         return tree
 
+
     def create_data_tables(self, tree, index):
         tree.index = index
         self.nodes.update(
             {index: [tree.token_value[0], tree.token_value[1], tree.shape]})
         Parser.counter+=1
         if len(tree.children) != 0:
+            l = []
             for i in tree.children:
                 self.create_data_tables(i, Parser.counter)
                 self.edges.append((tree.index, i.index))
+                l.append(i.index)
+            self.children.append(l)
+
         if tree.sibling != None:
             self.create_data_tables(tree.sibling, Parser.counter)
             self.edges.append((tree.index, tree.sibling.index))
@@ -206,10 +233,15 @@ class Parser:
         self.tree = self.stmt_sequence()
         self.create_data_tables(self.tree, 0)
         if self.curr_index == len(self.tokens) - 1:
-            print("success")
+            pass
         elif self.curr_index < len(self.tokens):
+            if self.token_pos[self.curr_index] == self.token_pos[self.curr_index-1]:
+                self.error = self.token_pos[self.curr_index],"SyntaxError"
+            else:
+                self.error = self.token_pos[self.curr_index-1],"SyntaxError"
             raise ValueError('SyntaxError', self.tokens)
 
     def clear_tables(self):
         self.nodes.clear()
+        Parser.counter = 0
         self.edges.clear()
